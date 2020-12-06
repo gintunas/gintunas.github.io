@@ -1,17 +1,16 @@
 {
-  "name": "code",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "Gintautas Jurgelevičius <gintunas@gmail.com>",
-  "license": "MIT",
-  "dependencies": {
-    "dat.gui": "^0.7.7",
-    "three": "^0.123.0"
-  },
-  "devDependencies": {}
+	"name": "code",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [],
+	"author": "Gintautas Jurgelevičius <gintunas@gmail.com>",
+	"license": "MIT",
+	"dependencies": {
+		"three": "^0.123.0"
+	},
+	"devDependencies": {}
 }
