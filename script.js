@@ -4,7 +4,7 @@ import * as THREE from 'https://unpkg.com/three@0.123.0/build/three.module.js';
 import { TrackballControls } from 'https://unpkg.com/three@0.123.0/examples/jsm/controls/TrackballControls.js';
 
 // import { TrackballControls } from './node_modules/three/examples/jsm/controls/TrackballControls.js';
-import { ConvexGeometry } from './node_modules/three/examples/jsm/geometries/ConvexGeometry.js';
+import { ConvexGeometry } from 'https://unpkg.com/three@0.123.0/examples/jsm/geometries/ConvexGeometry.js';
 
 const scene = new THREE.Scene();
 
