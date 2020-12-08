@@ -1,5 +1,6 @@
 import * as THREE from './node_modules/three/src/Three.js';
 import { TrackballControls } from './node_modules/three/examples/jsm/controls/TrackballControls.js';
+import { ConvexGeometry } from './node_modules/three/examples/jsm/geometries/ConvexGeometry.js';
 
 const scene = new THREE.Scene();
 
@@ -12,42 +13,109 @@ configureRenderer();
 $("#WebGL-output").append(renderer.domElement);
 var trackballControls = new TrackballControls(camera, renderer.domElement);
 
-var axes = new THREE.AxesHelper(100);
-scene.add(axes);
+// var axes = new THREE.AxesHelper(100);
+// scene.add(axes);
 
 addPlane();
 
 setUpLight();
 
-drawGreenCube();
-
 var controls = new function() {
-	this.stepsNumber = 10;
-	this.rotationAngle = 150;
-	this.axisX = 30;
-	this.axisZ = 30;
-	this.radius = 20;
+	this.RTorus = 8;
+	this.rTorus = 4;
+	this.noOfPoints = 100000;
+	this.textureScale = 3.5;
+	this.yPosition = 10;
 
 	this.asGeom = function() {
 		var options = {
-			stepsNumber: controls.stepsNumber,
-			rotationAngle: controls.rotationAngle,
-			axisX: controls.axisX,
-			axisZ: controls.axisZ,
-			radius: controls.radius
+			RTorus: controls.RTorus,
+			rTorus: controls.rTorus,
+			noOfPoints: controls.noOfPoints,
+			textureScale: controls.textureScale,
+			yPosition: controls.yPosition,
 		};
+		drawTorus(options);
 	};
 }
 
 var gui = new dat.GUI();
-gui.add(controls, 'stepsNumber', 6, 20).step(1).onChange(controls.asGeom);
-gui.add(controls, 'rotationAngle', 66, 360).onChange(controls.asGeom);
-gui.add(controls, 'axisX', -100, 100).onChange(controls.asGeom);
-gui.add(controls, 'axisZ', -100, 100).onChange(controls.asGeom);
-gui.add(controls, 'radius', 0, 50).onChange(controls.asGeom);
-
+gui.add(controls, 'RTorus', 1, 20).step(1).onChange(controls.asGeom);
+gui.add(controls, 'rTorus', 1, 20).step(1).onChange(controls.asGeom);
+gui.add(controls, 'noOfPoints', 100, 1000000).step(1).onChange(controls.asGeom);
+gui.add(controls, 'textureScale', 1, 20).step(1).onChange(controls.asGeom);
+gui.add(controls, 'yPosition', 0, 30).step(1).onChange(controls.asGeom);
 controls.asGeom();
 
+// drawGreenCube();
+
+var mesh;
+
+function drawTorus(options) {
+	if (mesh) scene.remove(mesh);
+
+	const r = options.rTorus;
+	const R = options.RTorus;
+
+	let points = generatePoints(R, r, options.noOfPoints);
+
+	let filteredPoints = filterPoints(R, r, points);
+
+	const geometry = new ConvexGeometry(filteredPoints);
+
+	geometry.faceVertexUvs[0] = [];
+
+	var faces = geometry.faces;
+
+	let u1, u2, u3;
+	const s = options.textureScale;
+	for (var i = 0; i < faces.length; i++) {
+		var v1 = geometry.vertices[faces[i].a],
+			v2 = geometry.vertices[faces[i].b],
+			v3 = geometry.vertices[faces[i].c];
+
+		u1 = calcU(v1.x, v1.z, s);
+		u2 = calcU(v2.x, v2.z, s);
+		u3 = calcU(v3.x, v3.z, s);
+
+		if (u1 > 0.9 * s || u2 > 0.9 * s || u3 > 0.9 * s) {
+			console.log("u1: " + u1);
+			console.log("u2: " + u2);
+			console.log("u3: " + u3);
+			if (u1 < s * 0.8) u1 += s;
+			if (u2 < s * 0.8) u2 += s;
+			if (u3 < s * 0.8) u3 += s;
+		}
+
+		geometry.faceVertexUvs[0].push([
+			new THREE.Vector2(u1, calcV(v1.y, r)),
+			new THREE.Vector2(u2, calcV(v2.y, r)),
+			new THREE.Vector2(u3, calcV(v3.y, r)),
+		]);
+	}
+	geometry.uvsNeedUpdate = true;
+
+	function calcU(x, z, s) {
+		let phi = Math.atan2(z, x);
+		return ((phi + Math.PI) / (2 * Math.PI)) * s;
+	}
+
+	function calcV(y, r) {
+		return (Math.asin(y / r) / Math.PI) + 1 / 2;
+	}
+
+	const texture = new THREE.TextureLoader().load('./textures/1445364615759335.png');
+	texture.wrapS = THREE.RepeatWrapping;
+
+	const material = new THREE.MeshPhongMaterial({ map: texture });
+
+	mesh = new THREE.Mesh(geometry, material);
+	mesh.position.y = controls.yPosition;
+	mesh.castShadow = true;
+	scene.add(mesh);
+}
+
+controls.asGeom();
 render();
 
 function render() {
@@ -56,19 +124,60 @@ function render() {
 	trackballControls.update();
 }
 
-function addPlane() {
-	var planeGeometry = new THREE.PlaneGeometry(100, 100);
-	var planeMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
-	planeMaterial.side = THREE.DoubleSide;
-	var plane = new THREE.Mesh(planeGeometry, planeMaterial);
-	plane.receiveShadow = true;
+function generatePoints(R, r, n) {
+	var points = [];
+	for (let i = 0; i < n; i++) {
+		let x = random(-(R + r), (R + r));
+		let y = random(-r, r);
+		let z = random(-(R + r), (R + r));
+		points.push(new THREE.Vector3(x, y, z));
+	}
+	return points;
+}
 
-	plane.rotation.x = -0.5 * Math.PI;
-	plane.position.x = 0
-	plane.position.y = 0
-	plane.position.z = 0
+function random(min, max) {
+	return Math.random() * (max - min) + min;
+}
 
-	scene.add(plane);
+function pow2(x) {
+	return Math.pow(x, 2);
+}
+
+function filterPoints(R, r, points) {
+	let a, b;
+	let filteredPoints = [];
+	points.forEach(v => {
+		a = pow2(pow2(v.x) + pow2(v.y) + pow2(v.z) + pow2(R) - pow2(r));
+		b = 4 * pow2(R) * (pow2(v.x) + pow2(v.z));
+		if (a - b <= 0) filteredPoints.push(v);
+	});
+	return filteredPoints;
+}
+
+// function generatePointsParametric(pointsNumberU, pointsNumberV, R, r) {
+// 	var points = [];
+// 	const a = 1 / pointsNumberU;
+// 	for (let u = -1; u < 1; u += a) {
+// 		let phi = Math.PI * u;
+// 		const b = 1 / pointsNumberV;
+// 		for (let v = -1; v < 1; v += b) {
+// 			let psi = Math.PI * (v - 1 / 2);
+// 			let x = (R + r * Math.cos(psi)) * Math.sin(phi);
+// 			let y = r * Math.sin(psi);
+// 			let z = (R + r * Math.cos(psi)) * Math.cos(phi);
+// 			points.push(new THREE.Vector3(x, y, z));
+// 		}
+// 	}
+// 	return points;
+// }
+
+function configureCamera() {
+	camera.position.x = -40;
+	camera.position.y = 20;
+	camera.position.z = -40;
+	camera.lookAt(scene.position);
+	// const helper = new THREE.CameraHelper(camera);
+	// scene.add(helper);
 }
 
 function configureRenderer() {
@@ -78,30 +187,33 @@ function configureRenderer() {
 	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 }
 
+function addPlane() {
+	var planeGeometry = new THREE.PlaneGeometry(100, 100);
+	var planeMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+	planeMaterial.side = THREE.DoubleSide;
+	var plane = new THREE.Mesh(planeGeometry, planeMaterial);
+	plane.receiveShadow = true;
+	plane.rotation.x = -0.5 * Math.PI;
+	plane.position.x = 0
+	plane.position.y = 0
+	plane.position.z = 0
+	scene.add(plane);
+}
+
 function setUpLight() {
-	const ambientLight = new THREE.AmbientLight(0x404040, 1);
+	const ambientLight = new THREE.AmbientLight(0x404040, 1.2);
 	scene.add(ambientLight);
-
 	var spotLight = new THREE.SpotLight(0xffffff, 1);
-	// spotLight.angle = Math.PI / 2 * 0.83;
-	spotLight.position.set(0, 50, 0);
+	spotLight.angle = Math.PI / 2 * 0.6;
+	spotLight.position.set(-50, 50, -50);
 	spotLight.castShadow = true;
-	spotLight.shadow.mapSize.width = 2048; // default is 512
-	spotLight.shadow.mapSize.height = 2048; // default is 512
+	spotLight.shadow.mapSize.width = 4096; // default is 512
+	spotLight.shadow.mapSize.height = 4096; // default is 512
 	scene.add(spotLight);
-
 	// const spotLightHelper = new THREE.SpotLightHelper(spotLight);
 	// scene.add(spotLightHelper);
 }
 
-function configureCamera() {
-	camera.position.x = 80;
-	camera.position.y = 80;
-	camera.position.z = 80;
-	camera.lookAt(scene.position);
-	// const helper = new THREE.CameraHelper(camera);
-	// scene.add(helper);
-}
 
 function drawGreenCube() {
 	const geometry = new THREE.BoxGeometry(20, 20, 20);
